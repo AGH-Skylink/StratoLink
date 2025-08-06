@@ -68,48 +68,44 @@ class loraE32:
             time.sleep(0.01)
         return False
 
-    def _send_at_command(self, command: str, timeout: float=1.0) -> Optional[str]:
+    def _send_at_command(self, command: str, timeout: float=1.0) -> bool:
         try:
             print(f"Sending AT command: {command}")
             self.serial_conn.reset_input_buffer()
             self.serial_conn.write(f"{command}\r\n".encode(errors='replace'))
+            time.sleep(0.01)
 
             start = time.time()
-            response = ""
-
             while (time.time() - start) < timeout:
                 if self.serial_conn.in_waiting > 0:
                     response = self.serial_conn.read(self.serial_conn.in_waiting).decode(errors='replace')
-                    if any(msg in response for msg in ["OK", "ERROR"]):
-                        return response.strip()
+                    print("Response:", response)
+                    if "ERROR" in response:
+                        return False
                 time.sleep(0.01)
-
-            return response.strip() or None
+            return True
         except Exception as e:
             print(f"Command error: {str(e)}")
-            return None
+            return False
 
     def configure_module(self) -> bool:
         self._enter_config_mode()
-        if not self._wait_for_aux():
+        if not self._wait_for_aux(timeout=2.0):
             return False
 
         config_commands = [
-            "AT+DEFAULT",
             "AT+POWER=3",
             "AT+PARAMETER=10,7,1,7",
-            "AT+UART=9600,8,1,0",
             "AT+ADDRESS=0",
             "AT+NETWORKID=0"
         ]
 
         for command in config_commands:
             if not self._send_at_command(command):
+                print(f"Command failed: {command}")
                 return False
-            time.sleep(0.1)
-
-        self._enter_normal_mode()
-        return self._wait_for_aux()
+            time.sleep(0.2)
+        return True
 
     def send_query(self):
         print("Sending power query: ")
