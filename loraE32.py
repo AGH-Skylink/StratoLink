@@ -73,16 +73,27 @@ class loraE32:
             print(f"Sending AT command: {command}")
             self.serial_conn.reset_input_buffer()
             self.serial_conn.write(f"{command}\r\n".encode(errors='replace'))
-            time.sleep(0.01)
+            time.sleep(0.1)
 
             start = time.time()
+            response_check = False
+
             while (time.time() - start) < timeout:
                 if self.serial_conn.in_waiting > 0:
-                    response = self.serial_conn.read(self.serial_conn.in_waiting).decode(errors='replace')
-                    print("Response:", response)
-                    if "ERROR" in response:
-                        return False
+                    response = self.serial_conn.read(self.serial_conn.in_waiting).decode(errors='replace').strip()
+
+                    if response:
+                        response_check = True
+                        print("Response:", response)
+                        if "ERROR" in response:
+                            return False
+
                 time.sleep(0.01)
+
+            if "?" in and not response_check:
+                print("No response to query command")
+                return False
+
             return True
         except Exception as e:
             print(f"Command error: {str(e)}")
