@@ -8,7 +8,7 @@ from typing import Optional, Dict
 
 
 class loraE32:
-    def __init__(self, port : str = '/dev/serial10', baudrate: int = 9600):
+    def __init__(self, port : str = '/dev/serial0', baudrate: int = 9600):
         self.M0_pin = 23
         self.M1_pin = 24
         self.AUX_pin = 25
@@ -17,7 +17,7 @@ class loraE32:
         self.port = port
         self.baudrate = baudrate
         self.serial_conn = None
-        self.crc_calculator = Calculator(Crc16.CCITT, optimized=True)
+        self.crc_calculator = Calculator(Crc16.XMODEM, optimized=True)
 
         try:
             self._setup_gpio()
