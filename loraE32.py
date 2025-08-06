@@ -8,7 +8,7 @@ from typing import Optional, Dict
 
 
 class loraE32:
-    def __init__(self, port : str = 'dev/serial10', baudrate: int = 9600):
+    def __init__(self, port : str = '/dev/serial10', baudrate: int = 9600):
         self.M0_pin = 23
         self.M1_pin = 24
         self.AUX_pin = 25
@@ -110,6 +110,12 @@ class loraE32:
 
         self._enter_normal_mode()
         return self._wait_for_aux()
+
+    def send_query(self):
+        print("Sending power query: ")
+        print(self._send_at_command("AT+POWER=?"))
+        print("\nSending channel query: ")
+        print(self._send_at_command("AT+CHANNEL=?"))
 
     def send_data(self, data: bytes, chunk_size: int = 58, timeout: float=5.0) -> bool:
         try:
