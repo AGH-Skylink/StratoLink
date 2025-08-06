@@ -90,7 +90,7 @@ class loraE32:
 
                 time.sleep(0.01)
 
-            if "?" in and not response_check:
+            if "?" in command and not response_check:
                 print("No response to query command")
                 return False
 
