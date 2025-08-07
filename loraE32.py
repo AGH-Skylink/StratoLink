@@ -75,7 +75,9 @@ class loraE32:
             print(f"Sending AT command: {command}")
             self.serial_conn.reset_input_buffer()
             self._wait_for_aux()
-            self.serial_conn.write(f"{command}\r\n".encode(errors='replace'))
+            self.serial_conn.write(f"{command}\r\n".encode('utf-8'))
+            raw = (command + '\r\n').encode('utf-8')
+            print("Sending raw bytes:", raw.hex())
             time.sleep(0.1)
 
             start = time.time()
