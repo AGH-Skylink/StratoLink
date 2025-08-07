@@ -8,7 +8,7 @@ from typing import Optional, Dict
 
 
 class loraE32:
-    def __init__(self, port : str = '/dev/serial0', baudrate: int = 9600):
+    def __init__(self, port : str = '/dev/ttyS0', baudrate: int = 9600):
         self.M0_pin = 23
         self.M1_pin = 24
         self.AUX_pin = 25
@@ -61,9 +61,11 @@ class loraE32:
         time.sleep(0.1)
 
     def _wait_for_aux(self, timeout: float=1.0) -> bool:
+        print("Waiting for AUX HIGH...")
         start = time.time()
         while (time.time() - start) < timeout:
             if  GPIO.input(self.AUX_pin) == GPIO.HIGH:
+                print("AUX is HIGH")
                 return True
             time.sleep(0.01)
         return False
@@ -72,6 +74,7 @@ class loraE32:
         try:
             print(f"Sending AT command: {command}")
             self.serial_conn.reset_input_buffer()
+            self._wait_for_aux()
             self.serial_conn.write(f"{command}\r\n".encode(errors='replace'))
             time.sleep(0.1)
 
@@ -119,12 +122,18 @@ class loraE32:
         return True
 
     def send_query(self):
+        # test for debug
+        print("M0:", GPIO.input(self.M0_pin))
+        print("M1:", GPIO.input(self.M1_pin))
+        # end of test
+        self._enter_config_mode()
         print("Sending power query: ")
         print(self._send_at_command("AT+POWER=?"))
         print("\nSending channel query: ")
         print(self._send_at_command("AT+CHANNEL=?"))
 
     def send_data(self, data: bytes, chunk_size: int = 58, timeout: float=5.0) -> bool:
+        self._enter_normal_mode()
         try:
             for i in range(0, len(data), chunk_size):
                 chunk = data[i:i+chunk_size]
@@ -141,6 +150,7 @@ class loraE32:
             return False
 
     def receive_data(self, timeout: float = 2.0) -> Optional[bytes]:
+        self._enter_normal_mode()
         try:
             start = time.time()
             while (time.time() - start) < timeout:
@@ -154,6 +164,7 @@ class loraE32:
             return None
 
     def process_command(self, command: str) -> Dict:
+        self._enter_normal_mode()
         if command == "list":
             try:
                 result = subprocess.run(['ls','-l'], capture_output=True, text=True)
