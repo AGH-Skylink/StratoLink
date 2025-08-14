@@ -68,34 +68,57 @@ class loraE32:
             time.sleep(0.01)
         return False
 
+    def _read_exact(self, n: int, timeout: float = 2.0) -> bytes:
+        end = time.time() + timeout
+        out = bytearray()
+        while len(out) < n and time.time() < end:
+            chunk = self.serial_conn.read(n - len(out))
+            if chunk:
+                out.extend(chunk)
+            else:
+                time.sleep(0.01)
+        return bytes(out)
+
     def configure_module(self) -> bool:
         self._enter_config_mode()
         self._wait_for_aux()
+
+        self.serial_conn.reset_input_buffer()
+        self.serial_conn.reset_output_buffer()
+
         self.serial_conn.write(bytes([0xC0, 0x00, 0x00, 0x1A, 0x0F, 0x47]))
-        self._wait_for_aux()
+
+        self._wait_for_aux(timeout=2.0)
+        time.sleep(0.02)
+
         self.serial_conn.reset_input_buffer()
         self.serial_conn.write(bytes([0xC1, 0xC1, 0xC1]))
-        resp = self.serial_conn.read(6)
-        print(f"Configuration after power change: {resp.hex()} (last byte={resp[5]:02X})")
+        resp = self._read_exact(6, timeout=2.0)
 
-        if resp[5] == 0x47:
+        print(f"Configuration after power change: len={len(resp)} data={resp.hex()}")
+
+        ok = len(resp) == 6 and resp[5] == 0x47
+        if ok:
             print("Configuration OK")
-            self._enter_normal_mode()
-            return True
         else:
             print("Configuration FAILED")
-            self._enter_normal_mode()
-            return False
+
+        self._enter_normal_mode()
+        return ok
 
     def check_parameters(self):
         self._enter_config_mode()
         self._wait_for_aux()
+        self.serial_conn.reset_input_buffer()
         self.serial_conn.write(bytes([0xC1, 0xC1, 0xC1]))
-        resp = self.serial_conn.read(6)
-        print("Present configuration parameters: ",resp.hex())
+        resp = self._read_exact(6, timeout=2.0)
+        print(f"Present configuration parameters: len={len(resp)} data={resp.hex()}")
+
+        self.serial_conn.reset_input_buffer()
         self.serial_conn.write(bytes([0xC3, 0xC3, 0xC3]))
-        resp = self.serial_conn.read(6)
-        print("Present version number: ",resp.hex())
+        resp = self._read_exact(6, timeout=2.0)
+        print(f"Present version number: len={len(resp)} data={resp.hex()}")
+
         print("#### To read settings go to documentation ####")
 
     def check_mode(self):
@@ -111,6 +134,8 @@ class loraE32:
             print("Power-saving Mode")
         elif m0 == GPIO.HIGH and m1 == GPIO.HIGH:
             print("Sleep Mode")
+        else:
+            print("Unknown state (check wiring)")
 
     def send_data(self, data: bytes, chunk_size: int = 58, timeout: float=5.0) -> bool:
         self._enter_normal_mode()
@@ -166,7 +191,7 @@ class loraE32:
 
                     header = f"FILE: {os.path.basename(filename)}:{len(data)}:{crc}\n"
 
-                    if not self.send_data(header.encode("UTF-8" ,errors='replace'), data):
+                    if not self.send_data(header.encode("UTF-8" ,errors='replace')):
                         return {"status": "error", "output": "Header send failed"}
 
                     if not self.send_data(data):
