@@ -8,11 +8,10 @@ from typing import Optional, Dict
 
 
 class loraE32:
-    def __init__(self, port : str = '/dev/ttyS0', baudrate: int = 9600):
+    def __init__(self, port : str = '/dev/serial0', baudrate: int = 9600):
         self.M0_pin = 23
         self.M1_pin = 24
         self.AUX_pin = 25
-        self.CLK_pin = 11
 
         self.port = port
         self.baudrate = baudrate
@@ -33,8 +32,7 @@ class loraE32:
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.M0_pin, GPIO.OUT)
         GPIO.setup(self.M1_pin, GPIO.OUT)
-        GPIO.setup(self.AUX_pin, GPIO.IN, pull_up_down = GPIO.PUD_DOWN)
-        GPIO.setup(self.CLK_pin, GPIO.OUT, initial=GPIO.HIGH)
+        GPIO.setup(self.AUX_pin, GPIO.IN, pull_up_down = GPIO.PUD_UP)
 
     def _set_mode(self, m0: int, m1: int):
         GPIO.output(self.M0_pin, m0)
@@ -60,79 +58,59 @@ class loraE32:
             self.serial_conn.open()
         time.sleep(0.1)
 
-    def _wait_for_aux(self, timeout: float=1.0) -> bool:
-        print("Waiting for AUX HIGH...")
+    def _wait_for_aux(self, timeout: float=2.0) -> bool:
+        print("[Waiting for AUX HIGH...]")
         start = time.time()
         while (time.time() - start) < timeout:
-            if  GPIO.input(self.AUX_pin) == GPIO.HIGH:
-                print("AUX is HIGH")
+            if  GPIO.input(self.AUX_pin):
+                print("[AUX is HIGH]")
                 return True
             time.sleep(0.01)
         return False
 
-    def _send_at_command(self, command: str, timeout: float=1.0) -> bool:
-        try:
-            print(f"Sending AT command: {command}")
-            self.serial_conn.reset_input_buffer()
-            self._wait_for_aux()
-            self.serial_conn.write(f"{command}\r\n".encode('utf-8'))
-            raw = (command + '\r\n').encode('utf-8')
-            print("Sending raw bytes:", raw.hex())
-            time.sleep(0.1)
-
-            start = time.time()
-            response_check = False
-
-            while (time.time() - start) < timeout:
-                if self.serial_conn.in_waiting > 0:
-                    response = self.serial_conn.read(self.serial_conn.in_waiting).decode(errors='replace').strip()
-
-                    if response:
-                        response_check = True
-                        print("Response:", response)
-                        if "ERROR" in response:
-                            return False
-
-                time.sleep(0.01)
-
-            if "?" in command and not response_check:
-                print("No response to query command")
-                return False
-
-            return True
-        except Exception as e:
-            print(f"Command error: {str(e)}")
-            return False
-
     def configure_module(self) -> bool:
         self._enter_config_mode()
-        if not self._wait_for_aux(timeout=2.0):
+        self._wait_for_aux()
+        self.serial_conn.write(bytes([0xC0, 0x00, 0x00, 0x1A, 0x0F, 0x47]))
+        self._wait_for_aux()
+        self.serial_conn.reset_input_buffer()
+        self.serial_conn.write(bytes([0xC1, 0xC1, 0xC1]))
+        resp = self.serial_conn.read(6)
+        print(f"Configuration after power change: {resp.hex()} (last byte={resp[5]:02X})")
+
+        if resp[5] == 0x47:
+            print("Configuration OK")
+            self._enter_normal_mode()
+            return True
+        else:
+            print("Configuration FAILED")
+            self._enter_normal_mode()
             return False
 
-        config_commands = [
-            "AT+POWER=3",
-            "AT+PARAMETER=10,7,1,7",
-            "AT+ADDRESS=0",
-            "AT+NETWORKID=0"
-        ]
-
-        for command in config_commands:
-            if not self._send_at_command(command):
-                print(f"Command failed: {command}")
-                return False
-            time.sleep(0.2)
-        return True
-
-    def send_query(self):
-        # test for debug
-        print("M0:", GPIO.input(self.M0_pin))
-        print("M1:", GPIO.input(self.M1_pin))
-        # end of test
+    def check_parameters(self):
         self._enter_config_mode()
-        print("Sending power query: ")
-        print(self._send_at_command("AT+POWER=?"))
-        print("\nSending channel query: ")
-        print(self._send_at_command("AT+CHANNEL=?"))
+        self._wait_for_aux()
+        self.serial_conn.write(bytes([0xC1, 0xC1, 0xC1]))
+        resp = self.serial_conn.read(6)
+        print("Present configuration parameters: ",resp.hex())
+        self.serial_conn.write(bytes([0xC3, 0xC3, 0xC3]))
+        resp = self.serial_conn.read(6)
+        print("Present version number: ",resp.hex())
+        print("#### To read settings go to documentation ####")
+
+    def check_mode(self):
+        m0 = GPIO.input(self.M0_pin)
+        m1 = GPIO.input(self.M1_pin)
+        print(f"M0={m0}, M1={m1}", end=" → ")
+
+        if m0 == GPIO.LOW and m1 == GPIO.LOW:
+            print("Normal Mode")
+        elif m0 == GPIO.HIGH and m1 == GPIO.LOW:
+            print("Wake-up Mode")
+        elif m0 == GPIO.LOW and m1 == GPIO.HIGH:
+            print("Power-saving Mode")
+        elif m0 == GPIO.HIGH and m1 == GPIO.HIGH:
+            print("Sleep Mode")
 
     def send_data(self, data: bytes, chunk_size: int = 58, timeout: float=5.0) -> bool:
         self._enter_normal_mode()
@@ -216,31 +194,19 @@ class loraE32:
                     "memory": mem.stdout.strip('\n'),
                     "configuration": conf.stdout.strip('\n'),
                     "ip": ip.stdout.strip('\n'),
-                    "signal_strength": self.get_signal_strength()
                 }
             except Exception as e:
                 return {"status": "error", "output": str(e)}
 
         elif command == "restart":
-            response = self._send_at_command("AT+RESET")
-            return {"status": "success" if response else "error", "response": response}
+            self._enter_config_mode()
+            self.serial_conn.write(bytes([0xC4, 0xC4, 0xC4]))
+            return {"status": "success"}
 
     def send_data_with_crc(self, data : bytes) -> bool:
         crc = self.crc_calculator.checksum(data)
         packet = f"{len(data)}:{crc}\n".encode('UTF-8', errors='replace')+data
         return self.send_data(packet)
-
-    def get_signal_strength(self) -> Optional[float]:
-        self._enter_config_mode()
-        response = self._send_at_command("AT+RRSI?")
-        self._enter_normal_mode()
-
-        if response and "RSSI=" in response:
-            try:
-                return float(response.split("RSSI=")[1].split()[0])
-            except (IndexError, ValueError):
-                pass
-        return None
 
     def close(self):
         if self.serial_conn and self.serial_conn.is_open:
