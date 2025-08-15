@@ -59,11 +59,11 @@ class loraE32:
         time.sleep(0.1)
 
     def _wait_for_aux(self, timeout: float=2.0) -> bool:
-        print("[Waiting for AUX HIGH...]")
+        # print("[Waiting for AUX HIGH...]")
         start = time.time()
         while (time.time() - start) < timeout:
             if  GPIO.input(self.AUX_pin):
-                print("[AUX is HIGH]")
+                # print("[AUX is HIGH]")
                 return True
             time.sleep(0.01)
         return False
