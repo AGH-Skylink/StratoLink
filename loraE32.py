@@ -112,14 +112,36 @@ class loraE32:
         self.serial_conn.reset_input_buffer()
         self.serial_conn.write(bytes([0xC1, 0xC1, 0xC1]))
         resp = self._read_exact(6, timeout=2.0)
-        print(f"Present configuration parameters: len={len(resp)} data={resp.hex()}")
+        print(f"Present configuration parameters: {resp.hex()}")
+
+        if len(resp) == 6 and resp[0] == 0xC0:
+            sped, chan, powe = resp[3], resp[4], resp[5]
+
+            baud_bits = (sped >> 3) & 0b111
+            baud_map = {
+                0b000: 1200, 0b001: 2400, 0b010: 4800, 0b011: 9600,
+                0b100: 19200, 0b101: 38400, 0b110: 57600, 0b111: 115200
+            }
+            baudrate = baud_map.get(baud_bits, "??")
+
+            freq_mhz = 900 + chan
+
+            power_bits = powe & 0b11
+            power_map = {0b00: 30, 0b01: 27, 0b10: 24, 0b11: 21}
+            power = power_map.get(power_bits, "??")
+
+            print(f"BAUDRATE UART: {baudrate} bps")
+            print(f"CHANNEL: {chan} (freq {freq_mhz} MHz)")
+            print(f"POWER: {power} dBm")
+        else:
+            print("WRONG CONFIGURATION - precising in progress...")
 
         self.serial_conn.reset_input_buffer()
         self.serial_conn.write(bytes([0xC3, 0xC3, 0xC3]))
         resp = self._read_exact(6, timeout=2.0)
-        print(f"Present version number: len={len(resp)} data={resp.hex()}")
+        print(f"Present version number: {resp.hex()}")
 
-        print("#### To read settings go to documentation ####")
+        print("### To read settings go to documentation ###")
 
     def check_mode(self):
         m0 = GPIO.input(self.M0_pin)
