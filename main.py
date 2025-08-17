@@ -94,5 +94,5 @@ try:
 except KeyboardInterrupt:
     print("\nInterrupted by user (Ctrl+C).")
 finally:
-    uart.close()
     print("Connection closed.")
+    uart.close()
