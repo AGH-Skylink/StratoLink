@@ -86,7 +86,7 @@ class loraE32:
         self.serial_conn.reset_input_buffer()
         self.serial_conn.reset_output_buffer()
 
-        self.serial_conn.write(bytes([0xC0, 0x00, 0x00, 0x1A, 0x0F, 0x47]))
+        self.serial_conn.write(bytes([0xC0, 0x00, 0x00, 0x1A, 0x06, 0x47]))
 
         self._wait_for_aux(timeout=2.0)
         time.sleep(0.02)
@@ -254,9 +254,8 @@ class loraE32:
         crc = self.crc_calculator.checksum(data)
         packet = f"{len(data)}:{crc}\n".encode('UTF-8', errors='replace')+data
         return self.send_data(packet)
-
     def take_photo(self):
-        subprocess.run(['fswebcam', 'photo.jpg'])
+        subprocess.run(['fswebcam', '-r', '320x240', '--jpeg', '60', '--no-banner', 'photo.jpg'])
         time.sleep(1)
 
     def close(self):
