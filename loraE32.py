@@ -194,7 +194,7 @@ class loraE32:
         self._enter_normal_mode()
         if command == "list":
             try:
-                result = subprocess.run(['ls','-l'], capture_output=True, text=True)
+                result = subprocess.run(['ls','-la', '/'], capture_output=True, text=True)
                 return {"status": "success", "output": result.stdout.strip()}
             except Exception as e:
                 return {"status": "error", "output": str(e)}
@@ -254,6 +254,10 @@ class loraE32:
         crc = self.crc_calculator.checksum(data)
         packet = f"{len(data)}:{crc}\n".encode('UTF-8', errors='replace')+data
         return self.send_data(packet)
+
+    def take_photo(self):
+        subprocess.run(['fswebcam', 'photo.jpg'])
+        time.sleep(1)
 
     def close(self):
         if self.serial_conn and self.serial_conn.is_open:

@@ -1,6 +1,6 @@
 import zlib
 class ImageProcessing:
-    def __init__(self, sciezka_do_pliku):
+    def __init__(self, sciezka_do_pliku='photo.jpg'):
         self.path = sciezka_do_pliku
         self.rozmiar_fragmentu = 54 # ile maksymalnie bajtów może być w kawałku -> mamy sumę kontrolną, 4 bajty w tych 58, więc bez będzie 54
         self.fragmenty = [] # tablica na jakiś kawałek

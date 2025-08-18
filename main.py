@@ -23,7 +23,8 @@ def menu():
             print("9) Send text with CRC (send_data_with_crc)")
             print("0) Exit")
             print("======================")
-            choice = input("Select option: ").strip()
+            uart.send_data("Enter your command: ".encode("utf-8",errors="replace"))
+            choice = uart.receive_data()
 
             if choice == "1":
                 uart.check_parameters()
