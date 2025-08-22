@@ -201,7 +201,7 @@ radio.close()
   Returns to Normal mode.
 
 - **`check_parameters()`**  
-  Reads current parameters and module version (`C1 C1 C1` and `C3 C3 C3`), printing length and HEX data.
+  Reads current parameters and module version (`C1 C1 C1` and `C3 C3 C3`).
 
 - **`check_mode()`**  
   Reads M0/M1 pin states and prints current operating mode: **Normal**, **Wake-up**, **Power-saving**, **Sleep**, or **Unknown**.
@@ -215,6 +215,17 @@ radio.close()
 - **`send_data_with_crc()`**  
   Adds a header with data length and **CRC-XModem** before transmission.
 
+- **`take_photo()`**  
+  Captures a single JPEG frame from the default video device using `fswebcam`, then waits briefly to ensure the file is flushed to disk. The call is synchronous; if you want it to raise on failure, use `check=True`.
+
+  Command executed:
+  ```
+  fswebcam -r 320x240 --jpeg 60 --no-banner photo.jpg
+  ```
+  - `-r 320x240` – capture resolution (QVGA, small to keep airtime short)  
+  - `--jpeg 60` – JPEG compression quality (~60/100, smaller file)  
+  - `--no-banner` – disables timestamp/logo overlay  
+  - Output file: `photo.jpg` in the current working directory (overwrites if it exists)
 - **`close()`**  
   Closes the UART port and cleans up GPIO.
 
