@@ -196,7 +196,7 @@ radio.close()
   Sets up GPIO pins, initializes UART, and immediately configures the module (sets power, channel, saves settings).
 
 - **`configure_module()`**  
-  Sends frame `C0 00 00 1A 0F 47` — stores configuration (21 dBm, CH=0x0F, 9600 8N1, 2.4 kbps).  
+  Sends frame `C0 00 00 1A 06 47` — stores configuration (21 dBm, CH=0x06, 9600 8N1, 2.4 kbps).  
   Confirms by reading parameters (`C1 C1 C1`) and checking `resp[5] == 0x47`.  
   Returns to Normal mode.
 
