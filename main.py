@@ -2,7 +2,7 @@ import loraE32
 import time
 
 print("Initializing E32...")
-uart = loraE32.loraE32()
+uart = loraE32.LoraE32()
 print("Checking parameters...")
 uart.check_parameters()
 
@@ -23,8 +23,7 @@ def menu():
             print("9) Send text with CRC (send_data_with_crc)")
             print("0) Exit")
             print("======================")
-            uart.send_data("Enter your command: ".encode("utf-8",errors="replace"))
-            choice = uart.receive_data()
+            choice = input("Enter your choice: ")
 
             if choice == "1":
                 uart.check_parameters()
@@ -46,11 +45,7 @@ def menu():
                     print("Error:", res.get("output"))
 
             elif choice == "5":
-                try:
-                    t = float(input("Receive timeout in seconds [default 2]: ") or "2")
-                except ValueError:
-                    t = 2.0
-                data = uart.receive_data(timeout=t)
+                data = uart.receive_data()
                 if data is None:
                     print("No data received.")
                 else:
